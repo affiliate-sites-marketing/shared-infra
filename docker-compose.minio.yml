@@ -1,0 +1,38 @@
+# =============================================================================
+# Shared MinIO S3 Storage Stack (Dùng chung cho heygoodly & bestora)
+# =============================================================================
+name: shared-storage
+
+services:
+  minio:
+    image: elestio/minio:latest
+    container_name: shared-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-CHANGE_ME_MINIO_PASSWORD}
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${MINIO_PORT:-9000}:9000"
+      - "${BIND_IP:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - shared_minio_data:/data
+    networks:
+      - shared-minio-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  shared_minio_data:
+    name: shared_minio_data
+
+networks:
+  shared-minio-net:
+    external: true
+    name: shared-minio-net

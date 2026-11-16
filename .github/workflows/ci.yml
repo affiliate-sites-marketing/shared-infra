@@ -1,0 +1,28 @@
+name: Shared Infra CI Validation
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  validate-infra:
+    name: Validate Docker Compose & Nginx Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Files
+        run: |
+          docker compose -f docker-compose.minio.yml config --quiet
+          docker compose -f docker-compose.nginx.yml config --quiet
+
+      - name: Validate Nginx Configuration Syntax
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "${{ github.workspace }}/nginx/conf.d:/etc/nginx/conf.d:ro" \
+            -v "${{ github.workspace }}/nginx/ssl:/etc/nginx/ssl:ro" \
+            nginx:1.27-alpine nginx -t

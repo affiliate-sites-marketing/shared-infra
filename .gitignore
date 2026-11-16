@@ -1,0 +1,8 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+nginx/certbot/conf/*
+!nginx/certbot/conf/.gitkeep
+nginx/ssl/*.key
+nginx/ssl/*.crt
