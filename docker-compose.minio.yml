@@ -1,13 +1,21 @@
 # =============================================================================
-# Shared MinIO S3 Storage Stack (Dùng chung cho heygoodly & bestora)
+# Shared MinIO S3 Storage Stack (Dùng chung cho heygoodly & heyworthly)
 # =============================================================================
 name: shared-storage
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   minio:
     image: elestio/minio:latest
     container_name: shared-minio
     restart: unless-stopped
+    mem_limit: 512m
+    logging: *default-logging
     command: server /data --console-address ":9001"
     env_file:
       - path: .env

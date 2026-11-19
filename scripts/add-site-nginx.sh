@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Auto-generate Nginx config for a site (Local/IP port or VPS Domain)
-# Usage (Domain):   ./scripts/add-site-nginx.sh bestora bestora.com
-# Usage (Local/IP): ./scripts/add-site-nginx.sh bestora _ 81
+# Usage (Domain):   ./scripts/add-site-nginx.sh heyworthly heyworthly.com
+# Usage (Local/IP): ./scripts/add-site-nginx.sh heyworthly _ 81
 # =============================================================================
 set -euo pipefail
 

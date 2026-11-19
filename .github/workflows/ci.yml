@@ -19,6 +19,16 @@ jobs:
           docker compose -f docker-compose.minio.yml config --quiet
           docker compose -f docker-compose.nginx.yml config --quiet
 
+      - name: Generate Dummy Self-Signed Cert for Nginx Syntax Test
+        run: |
+          mkdir -p nginx/ssl
+          if [ ! -f nginx/ssl/selfsigned.crt ]; then
+            openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+              -keyout nginx/ssl/selfsigned.key \
+              -out nginx/ssl/selfsigned.crt \
+              -subj "/CN=localhost"
+          fi
+
       - name: Validate Nginx Configuration Syntax
         run: |
           docker run --rm \

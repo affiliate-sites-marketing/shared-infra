@@ -3,6 +3,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Ensure Docker daemon starts automatically after VPS reboot (Linux systemd only)
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files docker.service >/dev/null 2>&1; then
+  if ! systemctl is-enabled --quiet docker.service 2>/dev/null; then
+    echo "==> Enabling docker.service & containerd.service on boot..."
+    systemctl enable docker.service containerd.service 2>/dev/null || true
+  fi
+fi
+
 echo "==> Ensuring shared Docker networks exist..."
 docker network inspect shared-minio-net >/dev/null 2>&1 || docker network create shared-minio-net
 docker network inspect shared-gateway-net >/dev/null 2>&1 || docker network create shared-gateway-net
@@ -13,7 +21,7 @@ if docker ps --format '{{.Names}}' | grep -qx 'heygoodly-minio'; then
   exit 1
 fi
 
-# Auto-generate self-signed SSL cert if missing (used by bestora :8443 and IP fallback :443)
+# Auto-generate self-signed SSL cert if missing (used by heyworthly :8443 and IP fallback :443)
 if [ ! -f nginx/ssl/selfsigned.crt ] || [ ! -f nginx/ssl/selfsigned.key ]; then
   echo "==> Generating self-signed SSL certificate in nginx/ssl/..."
   mkdir -p nginx/ssl
@@ -26,7 +34,7 @@ fi
 echo "==> Starting Shared MinIO (S3 API: 9000, Console: 9001)..."
 docker compose -f docker-compose.minio.yml up -d
 
-echo "==> Starting Shared Nginx Gateway (heygoodly :80/:443 | bestora :81/:8443)..."
+echo "==> Starting Shared Nginx Gateway (heygoodly :80/:443 | heyworthly :81/:8443)..."
 docker compose -f docker-compose.nginx.yml up -d
 
 echo "==> Shared Infrastructure is UP!"

@@ -1,4 +1,4 @@
-name: Shared Infra Production CD (MinIO + Nginx)
+name: Shared Infra Production CD (MinIO + Nginx + Certbot)
 
 on:
   push:
@@ -26,6 +26,15 @@ jobs:
         run: |
           docker compose -f docker-compose.minio.yml config --quiet
           docker compose -f docker-compose.nginx.yml config --quiet
+      - name: Generate Dummy Self-Signed Cert for Nginx Syntax Test
+        run: |
+          mkdir -p nginx/ssl
+          if [ ! -f nginx/ssl/selfsigned.crt ]; then
+            openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+              -keyout nginx/ssl/selfsigned.key \
+              -out nginx/ssl/selfsigned.crt \
+              -subj "/CN=localhost"
+          fi
       - name: Test Nginx Syntax
         run: |
           docker run --rm \
@@ -36,7 +45,7 @@ jobs:
             nginx:1.27-alpine nginx -t
 
   deploy-infra:
-    name: Deploy Shared MinIO & Nginx to VPS
+    name: Deploy Shared MinIO, Nginx & Certbot to VPS
     needs: validate
     if: ${{ github.event_name == 'push' || inputs.deploy_to_vps == true }}
     runs-on: ubuntu-latest
@@ -66,11 +75,21 @@ jobs:
             DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH || '/opt/shared-infra' }}"
             echo "==> Deploying Shared Infra to $DEPLOY_PATH..."
             cd "$DEPLOY_PATH"
-            git checkout -- nginx/conf.d/heygoodly.conf 2>/dev/null || true
+
+            # Ensure Docker auto-starts on VPS reboot
+            if command -v systemctl >/dev/null 2>&1; then
+              systemctl enable docker.service containerd.service 2>/dev/null || true
+            fi
+
+            git checkout -- nginx/conf.d/heygoodly.conf nginx/conf.d/heyworthly.conf 2>/dev/null || true
+            rm -f nginx/conf.d/bestora.conf
             git pull origin main
 
             if [ -f nginx/certbot/conf/live/heygoodly.com/fullchain.pem ]; then
               cp nginx/conf.vps/heygoodly.conf nginx/conf.d/heygoodly.conf
+            fi
+            if [ -f nginx/certbot/conf/live/heyworthly.com/fullchain.pem ]; then
+              cp nginx/conf.vps/heyworthly.conf nginx/conf.d/heyworthly.conf
             fi
 
             docker network inspect shared-minio-net >/dev/null 2>&1 || docker network create shared-minio-net
@@ -82,4 +101,25 @@ jobs:
             echo "==> Testing & reloading shared-nginx..."
             docker exec shared-nginx nginx -t
             docker exec shared-nginx nginx -s reload
+
+            # Auto-issue Let's Encrypt cert for heyworthly.com if DNS points here and cert doesn't exist yet
+            if [ ! -f nginx/certbot/conf/live/heyworthly.com/fullchain.pem ]; then
+              echo "==> Attempting initial Let's Encrypt issuance for heyworthly.com..."
+              if docker run --rm \
+                -v "${DEPLOY_PATH}/nginx/certbot/www:/var/www/certbot" \
+                -v "${DEPLOY_PATH}/nginx/certbot/conf:/etc/letsencrypt" \
+                certbot/certbot certonly --webroot \
+                --webroot-path=/var/www/certbot \
+                --email admin@heyworthly.com \
+                --agree-tos --no-eff-email \
+                -d heyworthly.com -d www.heyworthly.com; then
+                cp nginx/conf.vps/heyworthly.conf nginx/conf.d/heyworthly.conf
+                docker exec shared-nginx nginx -t
+                docker exec shared-nginx nginx -s reload
+                echo "==> Activated Let's Encrypt HTTPS for https://heyworthly.com!"
+              else
+                echo "WARN: Let's Encrypt issuance for heyworthly.com skipped/failed (check DNS or rate limit)."
+              fi
+            fi
+
             echo "==> Shared Infra deployed successfully!"

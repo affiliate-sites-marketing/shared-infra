@@ -2,7 +2,7 @@
 
 Hạ tầng dùng chung cho cả 2 website:
 - **`heygoodly`** (`:80` / `heygoodly.localhost`) $\rightarrow$ bucket `heygoodly-media`
-- **`bestora`** (`:81` / `bestora.localhost`) $\rightarrow$ bucket `bestora-media`
+- **`heyworthly`** (`:81` / `heyworthly.localhost` / `heyworthly.com`) $\rightarrow$ bucket `heyworthly-media`
 
 ## Khởi động ở Local
 ```bash
